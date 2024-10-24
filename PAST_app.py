@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import datetime
 import numpy as np
+import matplotlib.pyplot as plt
 import plotly.express as px
 
 url_padrao = 'https://raw.githubusercontent.com/GustavoDasa/Atividades/refs/heads/main/Conjuntos_de_dados/base_inmet_08_24.csv'
@@ -16,6 +17,17 @@ st.set_page_config(page_title="PAST - Plataforma de Análise de Séries Temporai
 def load_files(site):
     df = pd.read_csv(site)
     return df
+
+# Função para plotar o gráfico
+def plot_series(df, coluna_data, coluna_valores):
+    fig, ax = plt.subplots(figsize=(10, 6))
+    ax.plot(df[coluna_data], df[coluna_valores], label="Dados Originais", color='blue')
+    ax.plot(df[coluna_data], df['Média Móvel'], label=f"Média Móvel ({window_size} dias)", color='orange')
+    ax.set_xlabel('Data')
+    ax.set_ylabel(coluna_valores)
+    ax.set_title("Análise de Série Temporal")
+    ax.legend()
+    st.pyplot(fig)
 
 def converter_para_csv(df):
     return df.to_csv(index=False).encode('utf-8')
