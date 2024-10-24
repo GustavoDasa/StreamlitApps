@@ -5,7 +5,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import plotly.express as px
 
-url_padrao = 'https://raw.githubusercontent.com/GustavoDasa/Atividades/refs/heads/main/Conjuntos_de_dados/base_inmet_08_24.csv'
+url_padrao = 'https://raw.githubusercontent.com/GustavoDasa/StreamlitApps/refs/heads/main/Back/base_inmet_08_24.csv'
  
 st.set_page_config(page_title="PAST - Plataforma de Análise de Séries Temporais",initial_sidebar_state='expanded', page_icon=":chart_with_upwards_trend:", layout="wide")
 
@@ -37,10 +37,9 @@ def converter_para_csv(df):
 #######################         CÓDIGO         #########################################
 
 
-logo1 = 'https://github.com/GustavoDasa/Atividades/blob/main/Conjuntos_de_dados/LogoPASTb.png?raw=true'
-logo2 = 'https://github.com/GustavoDasa/Atividades/blob/main/Conjuntos_de_dados/LogoPASTw.png?raw=true'
+logo1 = 'https://github.com/GustavoDasa/StreamlitApps/blob/main/Back/LogoPASTw.png?raw=true'
 with st.sidebar:
-    st.image(logo2, width=200, use_column_width="always")
+    st.image(logo1, width=200, use_column_width="always")
 
 
 st.title("PA:red[S]T - Plataforma de Análise de Séries Temporais")
