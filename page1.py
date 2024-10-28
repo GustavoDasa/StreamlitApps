@@ -24,7 +24,7 @@ if opcao == 'Script 1: Análise Básica':
 
     # 1. Texto estático e entrada de texto
     st.header("1. Entrada de Texto")
-    nome = st.text_input("Qual é o seu nome?")
+    nome = st.text_input("Qual é o seu nome?", key="name")
     if nome:
         st.write(f"Olá, {nome}!")
 

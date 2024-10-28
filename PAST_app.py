@@ -46,7 +46,7 @@ st.title("PA:red[S]T - Plataforma de Análise de Séries Temporais")
 st.write("Nesta plataforma você poderá analisar o comportamento da Série Temporal que desejar, de forma rápida e intuitiva. Aproveite!")
 
 
-st.title("Análise de Séries Temporais")
+
 
 st.sidebar.header("1. Base de Dados")
 # Opção para inserir URL ou API
@@ -69,34 +69,27 @@ if data_source == 'URL de Dados (CSV ou API)':
         df = load_files(url)
 
 
-
 # Se os dados forem carregados, prosseguir para a análise
 if 'df' in locals():
 
     colunas = list(df.columns)
 
     st.sidebar.header("2. Configuração da Análise")
-    
+
+
+    st.title("Análise exploratória dos dados")
+    st.write("Como primeiro passo, indicamos uma análise breve análise para conhecer um pouco melhor o comportamento dos dados")
+
     # Seção 2: Escolha das colunas de interesse
-    st.subheader("Configurar Série Temporal")
+    st.subheader("Configuração do Conjunto de dados")
 
     # Selecionar a coluna de datas e a coluna de valores
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        coluna_data = st.selectbox("Selecione a coluna de data", list(df.columns))
-    colunas.remove(str(coluna_data))
-    with col2:
-        coluna_valores = st.selectbox("Selecione a coluna de valores", colunas,index=2)
-    with col3:
-        window_size = st.slider("Selecione o tamanho da janela para a média móvel", 1, 360, 7)
     
     
-    teste = st.toggle("Selecione a coluna de valores")
     
     
     # Converter a coluna de df para datetime
-    df[coluna_data] = pd.to_datetime(df[coluna_data], errors='coerce')
-    df = df.dropna(subset=[coluna_data])  # Remover linhas com datas inválidas
+#    df = df.dropna(subset=[coluna_data])  # Remover linhas com datas inválidas
     
     # Seção 3: Opções de análise
     st.sidebar.header("3. Análise de Séries Temporais")
@@ -104,23 +97,64 @@ if 'df' in locals():
     # Opção de análise: Média Móvel
     
     # Gerar a média móvel
-    df['Média Móvel'] = df[coluna_valores].rolling(window=window_size).mean()
+    #df['Média Móvel'] = df[coluna_valores].rolling(window=window_size).mean()
 
 
-    fig = px.scatter(
-        df,
-        x=coluna_data,
-        y=coluna_valores,
-        color=coluna_valores,
-        color_continuous_scale="reds",
-    )
 
 
-    tab1, tab2 = st.tabs(["Streamlit theme (default)", "Plotly native theme"])
+    tab1, tab2, tab3, tab4, tab5 = st.tabs(["Gráfico de Linhas", "Gráfico de Pontos", "Gráfico de Barras", "Gráfico de Caixa", "Base de dados"])
     with tab1:
+        teste = st.toggle("Toggle de ativação")
+
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            coluna_data = st.selectbox("Selecione o eixo X", list(df.columns))
+            df[coluna_data] = pd.to_datetime(df[coluna_data], errors='coerce')
+        colunas.remove(str(coluna_data))
+        with col2:
+            coluna_valores = st.selectbox("Selecione o eixo Y", colunas,index=2)
+        with col3:
+            window_size = st.slider("Slider para seleção", 1, 360, 7)
+
+        fig = px.line(df, x=coluna_data, y=coluna_valores)
+
+        fig.update_traces(line_color='#e34444', line_width=1)
         st.plotly_chart(fig, theme="streamlit", use_container_width=True)
+
     with tab2:
-        st.plotly_chart(fig, theme=None, use_container_width=True)
+        fig = px.scatter(
+            df,
+            x=coluna_data,
+            y=coluna_valores,
+            color=coluna_valores,
+            color_continuous_scale='reds'
+        )
+
+        # fig.update_traces(line_color='#e34444', line_width=1)
+        st.plotly_chart(fig, theme="streamlit", use_container_width=True)
+
+    with tab3:
+        fig = px.bar(
+            df,
+            x=coluna_data,
+            y=coluna_valores,
+            color=coluna_valores,
+            color_continuous_scale='reds'
+        )
+
+        # fig.update_traces(line_color='#e34444', line_width=1)
+        st.plotly_chart(fig, theme="streamlit", use_container_width=True)
+   
+    with tab1:
+
+        fig = px.box(df, y=coluna_valores)
+        st.plotly_chart(fig, theme="streamlit", use_container_width=True)
+
+    with tab5:
+        st.table(df.head(20))
+
+
+
 
     # Exibir os gráficos
     st.subheader("Gráficos de Séries Temporais")
@@ -134,4 +168,4 @@ if 'df' in locals():
     st.sidebar.download_button(label="Baixar Dados Processados", data=csv, file_name='serie_temporal.csv', mime='text/csv')
 
 else:
-    st.subheader("Para Iniciar, Selecione uma base de dados")
+    st.subheader("Para Iniciar, insira uma base de dados...")
