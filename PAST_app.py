@@ -4,6 +4,7 @@ import datetime
 import numpy as np
 import matplotlib.pyplot as plt
 import plotly.express as px
+from plotly.subplots import make_subplots
 
 url_padrao = 'https://raw.githubusercontent.com/GustavoDasa/StreamlitApps/refs/heads/main/Back/base_inmet_08_24.csv'
  
@@ -33,6 +34,36 @@ def converter_para_csv(df):
     return df.to_csv(index=False).encode('utf-8')
 
 
+def plot_utc(df, variavel1, variavel2, ano):
+
+        xlabel = 'Data'
+        df = df[pd.to_datetime(df['Data']).dt.year == ano]
+
+        # Criando subplots com 2 axes
+        subplot_fig = make_subplots(specs=[[{"secondary_y": True}]])
+
+        fig1 = px.line(df, x= xlabel, y=df[variavel1].groupby(df[xlabel]).transform('mean'))
+        fig2 = px.line(df, x= xlabel, y=df[variavel2].groupby(df[xlabel]).transform('mean'))
+
+        # Configurando as cores
+        color_fig1, color_fig2 = 'red', 'darkorange'
+        fig1.update_traces(line=dict(color=color_fig1))
+        fig2.update_traces(line=dict(color=color_fig2))
+        subplot_fig.update_layout(
+            yaxis=dict(title=variavel1, color=color_fig1),
+            yaxis2=dict(title=variavel2, color=color_fig2),
+        )
+
+        # Modifica/Ajusta o yaxis para fig2
+        fig2.update_traces(yaxis="y2")
+
+        # Configuração dos subplots
+        subplot_fig.add_traces(fig1.data + fig2.data)
+        subplot_fig.update_layout(yaxis=dict(title=variavel1 + ' MÉDIA'), yaxis2=dict(title=variavel2 + ' MÉDIA'))
+
+        return subplot_fig
+
+
 ########################################################################################
 #######################         CÓDIGO         #########################################
 
@@ -57,6 +88,14 @@ data_source = st.sidebar.radio("Escolha a fonte de dados", ('Base Padrão','Uplo
 
 if data_source == 'Base Padrão':
     df = load_files(url_padrao)
+    with st.expander(":clipboard: Sobre a Base Padrão"):
+        st.write('''
+A base de dados padrão é o conjunto disponibilizado pelo INMET, no período de 2008 à 2024 da região de São Carlos - SP.
+
+\
+Descubra mais em nosso relatório através do link: 
+    ''')
+
 if data_source == 'Upload de CSV':
     uploaded_file = st.sidebar.file_uploader("Carregar arquivo CSV", type=["csv"])
     if uploaded_file is not None:
@@ -104,7 +143,16 @@ if 'df' in locals():
 
     tab1, tab2, tab3, tab4, tab5 = st.tabs(["Gráfico de Linhas", "Gráfico de Pontos", "Gráfico de Barras", "Gráfico de Caixa", "Base de dados"])
     with tab1:
-        teste = st.toggle("Toggle de ativação")
+        popover = st.popover("Filter items")
+        with popover:
+            f1, f2, f3 = st.columns(3)
+            with f1:
+                teste = st.toggle("Toggle de ativação")
+            with f2:
+                red = st.checkbox("Show red items.", True)
+            with f3:
+                blue = st.checkbox("Show blue items.", True)
+            other = st.checkbox("other", True)
 
         col1, col2, col3 = st.columns(3)
         with col1:
@@ -145,7 +193,7 @@ if 'df' in locals():
         # fig.update_traces(line_color='#e34444', line_width=1)
         st.plotly_chart(fig, theme="streamlit", use_container_width=True)
    
-    with tab1:
+    with tab4:
 
         fig = px.box(df, y=coluna_valores)
         st.plotly_chart(fig, theme="streamlit", use_container_width=True)
@@ -167,5 +215,25 @@ if 'df' in locals():
     csv = converter_para_csv(df)
     st.sidebar.download_button(label="Baixar Dados Processados", data=csv, file_name='serie_temporal.csv', mime='text/csv')
 
+
+
+    
+
+    variavel1 = 'TEMPERATURA DO AR - BULBO SECO, HORARIA (°C)'
+    variavel2 = 'UMIDADE RELATIVA DO AR, HORARIA (%)'
+    ano = 2023
+
+    
+    st.plotly_chart(plot_utc(df, variavel1, variavel2, ano), theme="streamlit", use_container_width=True)
+
 else:
-    st.subheader("Para Iniciar, insira uma base de dados...")
+    st.subheader(''':sun_small_cloud:
+:barely_sunny:
+:sun_behind_cloud:
+:partly_sunny_rain:
+:sun_behind_rain_cloud:
+:rain_cloud:
+:snow_cloud:
+:lightning:
+:lightning_cloud:
+Para Iniciar, insira uma base de dados...''')
