@@ -7,7 +7,7 @@ import plotly.express as px
 from plotly.subplots import make_subplots
 
 url_padrao = 'https://raw.githubusercontent.com/GustavoDasa/StreamlitApps/refs/heads/main/Back/base_inmet_08_24.csv'
- 
+
 st.set_page_config(page_title="PAST - Plataforma de Análise de Séries Temporais",initial_sidebar_state='expanded', page_icon=":chart_with_upwards_trend:", layout="wide")
 
 
@@ -36,32 +36,39 @@ def converter_para_csv(df):
 
 def plot_utc(df, variavel1, variavel2, ano):
 
-        xlabel = 'Data'
-        df = df[pd.to_datetime(df['Data']).dt.year == ano]
+    xlabel = 'Data'
+    df = df[pd.to_datetime(df['Data']).dt.year == ano]
 
-        # Criando subplots com 2 axes
-        subplot_fig = make_subplots(specs=[[{"secondary_y": True}]])
+    # Criando subplots com 2 axes
+    subplot_fig = make_subplots(specs=[[{"secondary_y": True}]])
 
-        fig1 = px.line(df, x= xlabel, y=df[variavel1].groupby(df[xlabel]).transform('mean'))
-        fig2 = px.line(df, x= xlabel, y=df[variavel2].groupby(df[xlabel]).transform('mean'))
+    fig1 = px.line(df, x= xlabel, y=df[variavel1].groupby(df[xlabel]).transform('mean'))
+    fig2 = px.line(df, x= xlabel, y=df[variavel2].groupby(df[xlabel]).transform('mean'))
 
-        # Configurando as cores
-        color_fig1, color_fig2 = 'red', 'darkorange'
-        fig1.update_traces(line=dict(color=color_fig1))
-        fig2.update_traces(line=dict(color=color_fig2))
-        subplot_fig.update_layout(
-            yaxis=dict(title=variavel1, color=color_fig1),
-            yaxis2=dict(title=variavel2, color=color_fig2),
-        )
+    # Configurando as cores
+    color_fig1, color_fig2 = 'red', 'darkorange'
+    fig1.update_traces(line=dict(color=color_fig1))
+    fig2.update_traces(line=dict(color=color_fig2))
 
-        # Modifica/Ajusta o yaxis para fig2
-        fig2.update_traces(yaxis="y2")
+    # Modifica/Ajusta o yaxis para fig2
+    fig2.update_traces(yaxis="y2")
 
-        # Configuração dos subplots
-        subplot_fig.add_traces(fig1.data + fig2.data)
-        subplot_fig.update_layout(yaxis=dict(title=variavel1 + ' MÉDIA'), yaxis2=dict(title=variavel2 + ' MÉDIA'))
+    # Configuração dos subplots
+    subplot_fig.add_traces(fig1.data + fig2.data)
+    subplot_fig.update_layout(yaxis=dict(title=variavel1 + ' MÉDIA'), yaxis2=dict(title=variavel2 + ' MÉDIA'))
 
-        return subplot_fig
+    subplot_fig.update_layout(
+        yaxis=dict(
+            title=dict(text=variavel1, font=dict(color=color_fig1)),
+            tickfont=dict(color=color_fig1)
+        ),
+        yaxis2=dict(
+            title=dict(text=variavel2, font=dict(color=color_fig2)),
+            tickfont=dict(color=color_fig2)
+        ),
+    )
+
+    return subplot_fig
 
 
 ########################################################################################
@@ -93,7 +100,7 @@ if data_source == 'Base Padrão':
 A base de dados padrão é o conjunto disponibilizado pelo INMET, no período de 2008 à 2024 da região de São Carlos - SP.
 
 \
-Descubra mais em nosso relatório através do link: 
+Descubra mais em nosso relatório através do link:
     ''')
 
 if data_source == 'Upload de CSV':
@@ -123,18 +130,18 @@ if 'df' in locals():
     st.subheader("Configuração do Conjunto de dados")
 
     # Selecionar a coluna de datas e a coluna de valores
-    
-    
-    
-    
+
+
+
+
     # Converter a coluna de df para datetime
 #    df = df.dropna(subset=[coluna_data])  # Remover linhas com datas inválidas
-    
+
     # Seção 3: Opções de análise
     st.sidebar.header("3. Análise de Séries Temporais")
-    
+
     # Opção de análise: Média Móvel
-    
+
     # Gerar a média móvel
     #df['Média Móvel'] = df[coluna_valores].rolling(window=window_size).mean()
 
@@ -192,7 +199,7 @@ if 'df' in locals():
 
         # fig.update_traces(line_color='#e34444', line_width=1)
         st.plotly_chart(fig, theme="streamlit", use_container_width=True)
-   
+
     with tab4:
 
         fig = px.box(df, y=coluna_valores)
@@ -207,7 +214,30 @@ if 'df' in locals():
     # Exibir os gráficos
     st.subheader("Gráficos de Séries Temporais")
 
-    
+    # Titulo gráfico plot_utc
+    st.markdown("<h4 style='color: gray;'>Gráfico Comparativo de Séries Temporais</h4>", unsafe_allow_html=True)
+
+    #Filtragem gráfico de comparações (plot_utc)
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        variavel1 = st.selectbox('Selecione o primeiro eixo Y', list(df.columns[2:]), index = 5)
+    with col2:
+        variavel2 = st.selectbox('Selecione o segundo eixo Y', list(df.columns[2:]), index = 13)
+    with col3:
+        anos = (pd.to_datetime(df['Data']).dt.year).unique()
+        ano = st.selectbox('Selecione o ano da análise', anos, index = len(anos) - 1)
+
+
+#     variavel1 = st.sidebox.selectbox('Selecione o primeiro eixo Y', list(df.columns[2:]), index = 0)
+#     variavel2 = st.sidebox.selectbox('Selecione o segundo eixo Y', list(df.columns[2:]), index = 1)
+#     anos = (pd.to_datetime(df['Data']).dt.year).unique()
+#     ano = st.sidebox.selectbox('Selecione o ano da análise', anos, index = len(anos) - 1)
+
+
+    st.plotly_chart(plot_utc(df, variavel1, variavel2, ano), use_container_width=True)
+
+
+
     # Seção 4: Download de resultados
 
 
@@ -215,16 +245,6 @@ if 'df' in locals():
     csv = converter_para_csv(df)
     st.sidebar.download_button(label="Baixar Dados Processados", data=csv, file_name='serie_temporal.csv', mime='text/csv')
 
-
-
-    
-
-    variavel1 = 'TEMPERATURA DO AR - BULBO SECO, HORARIA (°C)'
-    variavel2 = 'UMIDADE RELATIVA DO AR, HORARIA (%)'
-    ano = 2023
-
-    
-    st.plotly_chart(plot_utc(df, variavel1, variavel2, ano), theme="streamlit", use_container_width=True)
 
 else:
     st.subheader(''':sun_small_cloud:
