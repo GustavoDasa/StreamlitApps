@@ -1,3 +1,14 @@
+############################   READ
+
+# PAST - Plataforma de Análise de Séries Temporais
+
+#   -------------------------------
+#   Execute no prompt (CMD):
+#   pip install streamlit
+#   streamlit run PAST.py
+
+####################################
+
 import streamlit as st
 import pandas as pd
 import datetime
@@ -100,8 +111,9 @@ if data_source == 'Base Padrão':
 A base de dados padrão é o conjunto disponibilizado pelo INMET, no período de 2008 à 2024 da região de São Carlos - SP.
 
 \
-Descubra mais em nosso relatório através do link:
+Descubra mais em nosso relatório através do link: https://www.overleaf.com/project/66cbfb4d17c87ff66456c075
     ''')
+
 
 if data_source == 'Upload de CSV':
     uploaded_file = st.sidebar.file_uploader("Carregar arquivo CSV", type=["csv"])
@@ -121,65 +133,58 @@ if 'df' in locals():
     colunas = list(df.columns)
 
     st.sidebar.header("2. Configuração da Análise")
-
+    df_data = st.sidebar.selectbox("Selecione a coluna de datas", list(df.columns))
 
     st.title("Análise exploratória dos dados")
-    st.write("Como primeiro passo, indicamos uma análise breve análise para conhecer um pouco melhor o comportamento dos dados")
-
-    # Seção 2: Escolha das colunas de interesse
-    st.subheader("Configuração do Conjunto de dados")
-
-    # Selecionar a coluna de datas e a coluna de valores
+    st.write(":gray[Como primeiro passo, indicamos uma análise breve análise para conhecer um pouco melhor o comportamento dos dados.]")
 
 
-
-
-    # Converter a coluna de df para datetime
-#    df = df.dropna(subset=[coluna_data])  # Remover linhas com datas inválidas
-
-    # Seção 3: Opções de análise
-    st.sidebar.header("3. Análise de Séries Temporais")
-
-    # Opção de análise: Média Móvel
-
-    # Gerar a média móvel
     #df['Média Móvel'] = df[coluna_valores].rolling(window=window_size).mean()
-
-
-
 
     tab1, tab2, tab3, tab4, tab5 = st.tabs(["Gráfico de Linhas", "Gráfico de Pontos", "Gráfico de Barras", "Gráfico de Caixa", "Base de dados"])
     with tab1:
-        popover = st.popover("Filter items")
+        popover = st.popover("Opções adicionais", help='Adicione complementos')
         with popover:
             f1, f2, f3 = st.columns(3)
             with f1:
-                teste = st.toggle("Toggle de ativação")
+                graf_duplo_y = st.toggle("Duplo eixo y", False)
             with f2:
-                red = st.checkbox("Show red items.", True)
+                mm_1 = st.checkbox("Média Móvel", False)
             with f3:
-                blue = st.checkbox("Show blue items.", True)
-            other = st.checkbox("other", True)
+                blue = st.checkbox("outros", False)
+            if mm_1:
+                window_size = st.slider("Janela da Média Móvel", 1, 360, 7)
 
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            coluna_data = st.selectbox("Selecione o eixo X", list(df.columns))
-            df[coluna_data] = pd.to_datetime(df[coluna_data], errors='coerce')
-        colunas.remove(str(coluna_data))
-        with col2:
-            coluna_valores = st.selectbox("Selecione o eixo Y", colunas,index=2)
-        with col3:
-            window_size = st.slider("Slider para seleção", 1, 360, 7)
+        if graf_duplo_y:
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                variavel1 = st.selectbox('Selecione o primeiro eixo Y', list(df.columns[2:]), index = 5)
+            with col2:
+                variavel2 = st.selectbox('Selecione o segundo eixo Y', list(df.columns[2:]), index = 13)
+            with col3:
+                anos = (pd.to_datetime(df['Data']).dt.year).unique()
+                ano = st.selectbox('Selecione o ano da análise', anos, index = len(anos) - 1)
 
-        fig = px.line(df, x=coluna_data, y=coluna_valores)
+            st.plotly_chart(plot_utc(df, variavel1, variavel2, ano), use_container_width=True)
 
-        fig.update_traces(line_color='#e34444', line_width=1)
-        st.plotly_chart(fig, theme="streamlit", use_container_width=True)
+        else:
+            col1, col2, col3, _,_ = st.columns(5)
+            with col1:
+                eixo_x = st.selectbox("Selecione o eixo X", list(df.columns))
+                df[eixo_x] = pd.to_datetime(df[eixo_x], errors='coerce')
+            colunas.remove(str(eixo_x))
+            with col2:
+                coluna_valores = st.selectbox("Selecione o eixo Y", colunas,index=2)
+            fig = px.line(df, x=eixo_x, y=coluna_valores)
+
+            fig.update_traces(line_color='#e34444', line_width=1)
+            st.plotly_chart(fig, theme="streamlit", use_container_width=True)
+
 
     with tab2:
         fig = px.scatter(
             df,
-            x=coluna_data,
+            x=eixo_x,
             y=coluna_valores,
             color=coluna_valores,
             color_continuous_scale='reds'
@@ -191,7 +196,7 @@ if 'df' in locals():
     with tab3:
         fig = px.bar(
             df,
-            x=coluna_data,
+            x=eixo_x,
             y=coluna_valores,
             color=coluna_valores,
             color_continuous_scale='reds'
@@ -217,29 +222,11 @@ if 'df' in locals():
     # Titulo gráfico plot_utc
     st.markdown("<h4 style='color: gray;'>Gráfico Comparativo de Séries Temporais</h4>", unsafe_allow_html=True)
 
-    #Filtragem gráfico de comparações (plot_utc)
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        variavel1 = st.selectbox('Selecione o primeiro eixo Y', list(df.columns[2:]), index = 5)
-    with col2:
-        variavel2 = st.selectbox('Selecione o segundo eixo Y', list(df.columns[2:]), index = 13)
-    with col3:
-        anos = (pd.to_datetime(df['Data']).dt.year).unique()
-        ano = st.selectbox('Selecione o ano da análise', anos, index = len(anos) - 1)
-
-
-#     variavel1 = st.sidebox.selectbox('Selecione o primeiro eixo Y', list(df.columns[2:]), index = 0)
-#     variavel2 = st.sidebox.selectbox('Selecione o segundo eixo Y', list(df.columns[2:]), index = 1)
-#     anos = (pd.to_datetime(df['Data']).dt.year).unique()
-#     ano = st.sidebox.selectbox('Selecione o ano da análise', anos, index = len(anos) - 1)
-
-
-    st.plotly_chart(plot_utc(df, variavel1, variavel2, ano), use_container_width=True)
+    #Filtragem gráfico de comparações (plot_utc))
 
 
 
     # Seção 4: Download de resultados
-
 
     st.sidebar.header("4. Baixar Resultados")
     csv = converter_para_csv(df)
