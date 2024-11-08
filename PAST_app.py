@@ -162,7 +162,7 @@ if 'df' in locals():
             with col2:
                 variavel2 = st.selectbox('Selecione o segundo eixo Y', list(df.columns[2:]), index = 13)
             with col3:
-                anos = (pd.to_datetime(df['Data']).dt.year).unique()
+                anos = (pd.to_datetime(df[df_data]).dt.year).unique()
                 ano = st.selectbox('Selecione o ano da análise', anos, index = len(anos) - 1)
 
             st.plotly_chart(plot_utc(df, variavel1, variavel2, ano), use_container_width=True)
@@ -171,22 +171,25 @@ if 'df' in locals():
             col1, col2, col3, _,_ = st.columns(5)
             with col1:
                 eixo_x = st.selectbox("Selecione o eixo X", list(df.columns))
-                df[eixo_x] = pd.to_datetime(df[eixo_x], errors='coerce')
             colunas.remove(str(eixo_x))
             with col2:
-                coluna_valores = st.selectbox("Selecione o eixo Y", colunas,index=2)
-            fig = px.line(df, x=eixo_x, y=coluna_valores)
+                eixo_y = st.selectbox("Selecione o eixo Y", colunas,index=2)
+            fig = px.line(df, x=eixo_x, y=eixo_y)
 
             fig.update_traces(line_color='#e34444', line_width=1)
             st.plotly_chart(fig, theme="streamlit", use_container_width=True)
 
-
     with tab2:
+        col1, col2, col3, _,_ = st.columns(5)       
+        with col1:
+            eixo_x = st.selectbox("Selecione o eixo X.", list(df.columns))
+        with col2:
+            eixo_y = st.selectbox("Selecione o eixo Y.", colunas,index=2)
         fig = px.scatter(
             df,
             x=eixo_x,
-            y=coluna_valores,
-            color=coluna_valores,
+            y=eixo_y,
+            color=eixo_y,
             color_continuous_scale='reds'
         )
 
@@ -194,11 +197,16 @@ if 'df' in locals():
         st.plotly_chart(fig, theme="streamlit", use_container_width=True)
 
     with tab3:
+        col1, col2, col3, _ = st.columns(4)
+        with col1:
+            eixo_x = st.selectbox("Selecione a barra", list(df.columns))
+        with col2:
+            eixo_y = st.selectbox("Selecione os valores", colunas,index=2)
         fig = px.bar(
             df,
             x=eixo_x,
-            y=coluna_valores,
-            color=coluna_valores,
+            y=eixo_y,
+            color=eixo_y,
             color_continuous_scale='reds'
         )
 
@@ -207,7 +215,8 @@ if 'df' in locals():
 
     with tab4:
 
-        fig = px.box(df, y=coluna_valores)
+        fig = px.box(df, y=eixo_y)
+        fig.update_traces(marker_color = 'indianred', line_width=2)
         st.plotly_chart(fig, theme="streamlit", use_container_width=True)
 
     with tab5:
