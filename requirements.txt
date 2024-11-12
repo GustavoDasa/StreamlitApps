@@ -3,4 +3,4 @@ datetime
 numpy
 matplotlib
 plotly
-seasonal_decompose
+statsmodels
