@@ -7,6 +7,8 @@
 #   pip install streamlit
 #   streamlit run PAST.py
 
+#   Caso ainda não tenha instalado as bibliotecas:
+#   pip install statsmodels
 ####################################
 
 import streamlit as st
@@ -16,6 +18,10 @@ import numpy as np
 import matplotlib.pyplot as plt
 import plotly.express as px
 from plotly.subplots import make_subplots
+import plotly.graph_objects as go
+from statsmodels.tsa.seasonal import seasonal_decompose
+from statsmodels.graphics.tsaplots import plot_acf
+from statsmodels.tsa.stattools import acf
 
 url_padrao = 'https://raw.githubusercontent.com/GustavoDasa/StreamlitApps/refs/heads/main/Back/base_inmet_08_24.csv'
 
@@ -43,6 +49,98 @@ def plot_series(df, coluna_data, coluna_valores):
 
 def converter_para_csv(df):
     return df.to_csv(index=False).encode('utf-8')
+
+def decomposicao_serie_temporal(dados, variavel_y, freq=12, modelo='additive'):
+    # Cria uma cópia do DataFrame com as colunas 'Data' e 'variavel_y'
+    dados_copia = dados[['Data', variavel_y]].copy()
+
+    # Converte a coluna 'Data' para o tipo datetime, se ainda não estiver nesse formato
+    dados_copia['Data'] = pd.to_datetime(dados_copia['Data'])
+
+    # Extrai o mês e adiciona a coluna 'mes'
+    dados_copia['mes'] = dados_copia['Data'].dt.to_period('M')
+
+    # Calcula a média mensal de 'variavel_y'
+    dados_mensal = dados_copia.groupby('mes')[variavel_y].mean().reset_index()
+    dados_mensal['mes'] = dados_mensal['mes'].dt.to_timestamp()  # Converte 'mes' para datetime
+
+    # Preenche valores nulos com o valor anterior
+    if dados_mensal[variavel_y].isnull().sum() > 0:
+        dados_mensal[variavel_y].fillna(method='ffill', inplace=True)
+
+    # Realiza a decomposição da série temporal
+    decomposicao = seasonal_decompose(dados_mensal[variavel_y], model=modelo, period=int(freq))
+
+    # Cria subplots com 4 gráficos, um abaixo do outro
+    subplot_fig = make_subplots(rows=4, cols=1, shared_xaxes=True, vertical_spacing=0.05,
+                                subplot_titles=["Observado", "Tendência", "Sazonalidade", "Ruído"])
+
+    # Observado
+    subplot_fig.add_trace(go.Scatter(x=dados_mensal['mes'], y=decomposicao.observed, mode='lines', name='Observado', line=dict(color='blue')),
+                          row=1, col=1)
+
+    # Tendência
+    subplot_fig.add_trace(go.Scatter(x=dados_mensal['mes'], y=decomposicao.trend, mode='lines', name='Tendência', line=dict(color='orange')),
+                          row=2, col=1)
+
+    # Sazonalidade
+    subplot_fig.add_trace(go.Scatter(x=dados_mensal['mes'], y=decomposicao.seasonal, mode='lines', name='Sazonalidade', line=dict(color='green')),
+                          row=3, col=1)
+
+    # Ruído
+    subplot_fig.add_trace(go.Scatter(x=dados_mensal['mes'], y=decomposicao.resid, mode='lines', name='Ruído', line=dict(color='red')),
+                          row=4, col=1)
+
+    # Layout do gráfico
+    subplot_fig.update_layout(
+        title=f'Decomposição da Série Temporal ({modelo})',
+        #xaxis_title='Data',
+        yaxis_title='Valores',
+        height=800,
+        template='plotly_white'
+    )
+
+    # Ajuste no título e labels
+    subplot_fig.update_layout(
+        showlegend=False,
+        title_text=f"Decomposição da Série Temporal ({modelo})",
+        height=1000
+    )
+
+    return subplot_fig
+
+def plot_autocorrelacao(dados, variavel_y, lags=24):
+    # Cria uma cópia do DataFrame com as colunas 'Data' e 'variavel_y'
+    dados_copia = dados[['Data', variavel_y]].copy()
+
+    # Converte a coluna 'Data' para o tipo datetime, se ainda não estiver nesse formato
+    dados_copia['Data'] = pd.to_datetime(dados_copia['Data'])
+
+    # Extrai o mês e adiciona a coluna 'mes'
+    dados_copia['mes'] = dados_copia['Data'].dt.to_period('M')
+
+    # Calcula a média mensal de 'variavel_y'
+    dados_mensal = dados_copia.groupby('mes')[variavel_y].mean().reset_index()
+    dados_mensal['mes'] = dados_mensal['mes'].dt.to_timestamp()  # Converte 'mes' para datetime
+
+    # Preenche valores nulos com o valor anterior
+    if dados_mensal[variavel_y].isnull().sum() > 0:
+        dados_mensal[variavel_y].fillna(method='ffill', inplace=True)
+
+    # Calcula a autocorrelação
+    acf_vals = acf(dados_mensal[variavel_y], nlags=lags)
+
+    # Cria o gráfico de autocorrelação com Plotly
+    fig = go.Figure()
+    fig.add_trace(go.Bar(x=list(range(len(acf_vals))), y=acf_vals, name="Autocorrelação"))
+    fig.update_layout(
+        title="Função de Autocorrelação (ACF)",
+        xaxis_title="Defasagens",
+        yaxis_title="Autocorrelação",
+        template="plotly_white"
+    )
+
+    return fig
 
 
 def plot_utc(df, variavel1, variavel2, ano):
@@ -141,7 +239,7 @@ if 'df' in locals():
 
     #df['Média Móvel'] = df[coluna_valores].rolling(window=window_size).mean()
 
-    tab1, tab2, tab3, tab4, tab5 = st.tabs(["Gráfico de Linhas", "Gráfico de Pontos", "Gráfico de Barras", "Gráfico de Caixa", "Base de dados"])
+    tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs(["Gráfico de Linhas", "Gráfico de Pontos", "Gráfico de Barras", "Gráfico de Caixa", "Base de dados", "Gráfico de decomposição", "Gráfico de autocorrelação"])
     with tab1:
         popover = st.popover("Opções adicionais", help='Adicione complementos')
         with popover:
@@ -180,7 +278,7 @@ if 'df' in locals():
             st.plotly_chart(fig, theme="streamlit", use_container_width=True)
 
     with tab2:
-        col1, col2, col3, _,_ = st.columns(5)       
+        col1, col2, col3, _,_ = st.columns(5)
         with col1:
             eixo_x = st.selectbox("Selecione o eixo X.", list(df.columns))
         with col2:
@@ -222,14 +320,34 @@ if 'df' in locals():
     with tab5:
         st.table(df.head(20))
 
+    with tab6:
+        col1, col2 = st.columns(2)
+        with col1:
+            variavel1 = st.selectbox('Selecione o eixo Y', list(df.columns[2:]), index = 5, key="variavely_decomp")
+        with col2:
+            modelo = st.radio("Selecione o modelo de decomposição", ('additive', 'multiplicative'), index=0, key="modelo_decomp")
+
+        if modelo == 'additive':
+            st.plotly_chart(decomposicao_serie_temporal(df, variavel1, freq=12, modelo='additive'), use_container_width=True)
+        else:
+            st.plotly_chart(decomposicao_serie_temporal(df, variavel1, freq=12, modelo='multiplicative'), use_container_width=True)
+
+    with tab7:
+        col1, col2 = st.columns(2)
+        with col1:
+            variavel1 = st.selectbox('Selecione o eixo Y', list(df.columns[2:]), index = 5, key="variavely_lag")
+
+        st.plotly_chart(plot_autocorrelacao(df, variavel1, lags=24), use_container_width=True)
 
 
 
-    # Exibir os gráficos
-    st.subheader("Gráficos de Séries Temporais")
 
-    # Titulo gráfico plot_utc
-    st.markdown("<h4 style='color: gray;'>Gráfico Comparativo de Séries Temporais</h4>", unsafe_allow_html=True)
+
+    # # Exibir os gráficos
+    # st.subheader("Gráficos de Séries Temporais")
+
+    # # Titulo gráfico plot_utc
+    # st.markdown("<h4 style='color: gray;'>Gráfico Comparativo de Séries Temporais</h4>", unsafe_allow_html=True)
 
     #Filtragem gráfico de comparações (plot_utc))
 
