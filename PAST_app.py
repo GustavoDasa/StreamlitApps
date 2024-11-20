@@ -50,12 +50,12 @@ def plot_series(df, coluna_data, coluna_valores):
 def converter_para_csv(df):
     return df.to_csv(index=False).encode('utf-8')
 
-def decomposicao_serie_temporal(dados, variavel_y, freq=12, modelo='additive'):
+def decomposicao_serie_temporal(dados,df_data, variavel_y, freq=12, modelo='additive'):
     # Cria uma cópia do DataFrame com as colunas 'Data' e 'variavel_y'
-    dados_copia = dados[['Data', variavel_y]].copy()
+    dados_copia = dados[[df_data, variavel_y]].copy()
 
     # Converte a coluna 'Data' para o tipo datetime, se ainda não estiver nesse formato
-    dados_copia['Data'] = pd.to_datetime(dados_copia['Data'])
+    dados_copia[df_data] = pd.to_datetime(dados_copia['Data'])
 
     # Extrai o mês e adiciona a coluna 'mes'
     dados_copia['mes'] = dados_copia['Data'].dt.to_period('M')
@@ -109,15 +109,15 @@ def decomposicao_serie_temporal(dados, variavel_y, freq=12, modelo='additive'):
 
     return subplot_fig
 
-def plot_autocorrelacao(dados, variavel_y, lags=24):
+def plot_autocorrelacao(dados, df_data, variavel_y, lags=24):
     # Cria uma cópia do DataFrame com as colunas 'Data' e 'variavel_y'
-    dados_copia = dados[['Data', variavel_y]].copy()
+    dados_copia = dados[[df_data, variavel_y]].copy()
 
     # Converte a coluna 'Data' para o tipo datetime, se ainda não estiver nesse formato
-    dados_copia['Data'] = pd.to_datetime(dados_copia['Data'])
+    dados_copia[df_data] = pd.to_datetime(dados_copia['Data'])
 
     # Extrai o mês e adiciona a coluna 'mes'
-    dados_copia['mes'] = dados_copia['Data'].dt.to_period('M')
+    dados_copia['mes'] = dados_copia[df_data].dt.to_period('M')
 
     # Calcula a média mensal de 'variavel_y'
     dados_mensal = dados_copia.groupby('mes')[variavel_y].mean().reset_index()
@@ -143,10 +143,10 @@ def plot_autocorrelacao(dados, variavel_y, lags=24):
     return fig
 
 
-def plot_utc(df, variavel1, variavel2, ano):
+def plot_utc(df,df_data, variavel1, variavel2, ano):
 
-    xlabel = 'Data'
-    df = df[pd.to_datetime(df['Data']).dt.year == ano]
+    xlabel = df_data
+    df = df[pd.to_datetime(df[df_data]).dt.year == ano]
 
     # Criando subplots com 2 axes
     subplot_fig = make_subplots(specs=[[{"secondary_y": True}]])
@@ -189,8 +189,9 @@ with st.sidebar:
     st.image(logo1, width=200, use_column_width="always")
 
 
-st.title("PA:red[S]T - Plataforma de Análise de Séries Temporais")
+st.title("PA:red[S]T - Plataforma de Análise de Séries Temporais", anchor='PAST')
 st.write("Nesta plataforma você poderá analisar o comportamento da Série Temporal que desejar, de forma rápida e intuitiva. Aproveite!")
+
 
 
 
@@ -233,13 +234,14 @@ if 'df' in locals():
     st.sidebar.header("2. Configuração da Análise")
     df_data = st.sidebar.selectbox("Selecione a coluna de datas", list(df.columns))
 
-    st.title("Análise exploratória dos dados")
-    st.write(":gray[Como primeiro passo, indicamos uma análise breve análise para conhecer um pouco melhor o comportamento dos dados.]")
 
+    st.divider()
+    st.subheader("Análise exploratória dos dados", anchor='EDA')#, divider='red')
+    st.write(":gray[Como primeiro passo, indicamos uma breve análise para conhecer um pouco melhor o comportamento dos dados.]")
 
     #df['Média Móvel'] = df[coluna_valores].rolling(window=window_size).mean()
 
-    tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs(["Gráfico de Linhas", "Gráfico de Pontos", "Gráfico de Barras", "Gráfico de Caixa", "Base de dados", "Gráfico de decomposição", "Gráfico de autocorrelação"])
+    tab1, tab2, tab3, tab4, tab5 = st.tabs(["Gráfico de Linhas", "Gráfico de Pontos", "Gráfico de Barras", "Gráfico de Caixa", "Base de dados"])
     with tab1:
         popover = st.popover("Opções adicionais", help='Adicione complementos')
         with popover:
@@ -320,7 +322,16 @@ if 'df' in locals():
     with tab5:
         st.table(df.head(20))
 
-    with tab6:
+
+    # st.markdown("<h4 style='color: gray;'>Gráfico Comparativo de Séries Temporais</h4>", unsafe_allow_html=True)
+    
+    st.divider()
+
+    st.subheader("Gráficos de Séries Temporais")
+    st.write(":gray[Para ter um pouco mais conhecimento sobre os seus dados, no aspecto temporal, indicamos a nálise dos seguintes gráficos.]")
+
+    tab1, tab2 = st.tabs(["Gráfico de decomposição", "Gráfico de autocorrelação"])
+    with tab1:
         col1, col2 = st.columns(2)
         with col1:
             variavel1 = st.selectbox('Selecione o eixo Y', list(df.columns[2:]), index = 5, key="variavely_decomp")
@@ -328,28 +339,18 @@ if 'df' in locals():
             modelo = st.radio("Selecione o modelo de decomposição", ('additive', 'multiplicative'), index=0, key="modelo_decomp")
 
         if modelo == 'additive':
-            st.plotly_chart(decomposicao_serie_temporal(df, variavel1, freq=12, modelo='additive'), use_container_width=True)
+            st.plotly_chart(decomposicao_serie_temporal(df,df_data, variavel1, freq=12, modelo='additive'), use_container_width=True)
         else:
-            st.plotly_chart(decomposicao_serie_temporal(df, variavel1, freq=12, modelo='multiplicative'), use_container_width=True)
+            st.plotly_chart(decomposicao_serie_temporal(df,df_data, variavel1, freq=12, modelo='multiplicative'), use_container_width=True)
 
-    with tab7:
+    with tab2:
         col1, col2 = st.columns(2)
         with col1:
             variavel1 = st.selectbox('Selecione o eixo Y', list(df.columns[2:]), index = 5, key="variavely_lag")
 
-        st.plotly_chart(plot_autocorrelacao(df, variavel1, lags=24), use_container_width=True)
+        st.plotly_chart(plot_autocorrelacao(df,df_data, variavel1, lags=24), use_container_width=True)
 
 
-
-
-
-    # # Exibir os gráficos
-    # st.subheader("Gráficos de Séries Temporais")
-
-    # # Titulo gráfico plot_utc
-    # st.markdown("<h4 style='color: gray;'>Gráfico Comparativo de Séries Temporais</h4>", unsafe_allow_html=True)
-
-    #Filtragem gráfico de comparações (plot_utc))
 
 
 
