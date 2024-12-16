@@ -265,7 +265,7 @@ if 'df' in locals():
                 anos = (pd.to_datetime(df[df_data]).dt.year).unique()
                 ano = st.selectbox('Selecione o ano da análise', anos, index = len(anos) - 1)
 
-            st.plotly_chart(plot_utc(df, variavel1, variavel2, ano), use_container_width=True)
+            st.plotly_chart(plot_utc(df, df_data, variavel1, variavel2, ano), use_container_width=True)
 
         else:
             col1, col2, col3, _,_ = st.columns(5)
