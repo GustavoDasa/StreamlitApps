@@ -293,7 +293,7 @@ def modelos_ARIMA(dados, df_data, variavel_y, p, d, q):
 
 logo1 = 'https://github.com/GustavoDasa/StreamlitApps/blob/main/Back/LogoPASTw.png?raw=true'
 with st.sidebar:
-    st.image(logo1, width=200, use_column_width="always")
+    st.image(logo1, width=200,  use_container_width="always")
 
 
 st.title("PA:red[S]T - Plataforma de Análise de Séries Temporais", anchor='PAST')
