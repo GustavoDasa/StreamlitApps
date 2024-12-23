@@ -284,7 +284,7 @@ def modelos_ARIMA(dados, df_data, variavel_y, p, d, q):
     # Exibe o sumário no Streamlit
     st.markdown("#### Sumário do Modelo")
     st.text(modelo.summary())
-
+    
     return fig
 
 ########################################################################################
@@ -457,7 +457,7 @@ if 'df' in locals():
 
         st.plotly_chart(plot_autocorrelacao(df,df_data, variavel1, lags=24), use_container_width=True)
 
-
+        
     with tab3:
         col1, col2 = st.columns(2)
         with col1:
@@ -470,27 +470,27 @@ if 'df' in locals():
     st.divider()
     st.subheader("Modelos MA, AR, ARMA e ARIMA", anchor='Modelos')#, divider='red')
     st.write(":gray[Agora, com um maior conhecimento sobre o comportamento dos dados, indicamos ajustar alguns modelos.]")
-
+    
     tab1, = st.tabs(["Modelos"])
     with tab1:
         col1, col2, col3, col4 = st.columns(4)
         with col1:
             variavel_y = st.selectbox('Selecione a variável de interesse', list(df.columns), index = 5, key="variavely_mod")
-
+            
         with col2:
             p = st.selectbox('Parâmetro p', list(range(0, 11)), index = 2, key="variavely_mod_p")
 
         with col3:
             d = st.selectbox('Parâmetro d', list(range(0, 11)), index = 0, key="variavely_mod_d")
-
+            
         with col4:
             q = st.selectbox('Parâmetro q', list(range(0, 11)), index = 3, key="variavely_mod_q")
-
+            
         st.plotly_chart(modelos_ARIMA(df, df_data, variavel_y, p, d, q), use_container_width=True)
-
-
-
-
+        
+        
+        
+        
 
     # Seção 4: Download de resultados
 
