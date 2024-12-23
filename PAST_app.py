@@ -20,10 +20,12 @@ import plotly.express as px
 from plotly.subplots import make_subplots
 import plotly.graph_objects as go
 from statsmodels.tsa.seasonal import seasonal_decompose
-from statsmodels.graphics.tsaplots import plot_acf
-from statsmodels.tsa.stattools import acf
+from statsmodels.graphics.tsaplots import plot_acf, plot_pacf
+from statsmodels.tsa.stattools import acf, pacf
+from statsmodels.tsa.arima.model import ARIMA
 
-url_padrao = 'https://raw.githubusercontent.com/GustavoDasa/StreamlitApps/refs/heads/main/Back/base_inmet_08_24.csv'
+
+url_padrao = 'https://raw.githubusercontent.com/GustavoDasa/StreamlitApps/refs/heads/main/Back/base_inmet_08_24_new.csv'
 
 st.set_page_config(page_title="PAST - Plataforma de Análise de Séries Temporais",initial_sidebar_state='expanded', page_icon=":chart_with_upwards_trend:", layout="wide")
 
@@ -50,51 +52,60 @@ def plot_series(df, coluna_data, coluna_valores):
 def converter_para_csv(df):
     return df.to_csv(index=False).encode('utf-8')
 
-def decomposicao_serie_temporal(dados,df_data, variavel_y, freq=12, modelo='additive'):
+
+def decomposicao_serie_temporal(dados, df_data, variavel_y, freq=365, modelo='additive'):
+    import pandas as pd
+    from statsmodels.tsa.seasonal import seasonal_decompose
+    from plotly.subplots import make_subplots
+    import plotly.graph_objects as go
+
     # Cria uma cópia do DataFrame com as colunas 'Data' e 'variavel_y'
     dados_copia = dados[[df_data, variavel_y]].copy()
 
     # Converte a coluna 'Data' para o tipo datetime, se ainda não estiver nesse formato
-    dados_copia[df_data] = pd.to_datetime(dados_copia['Data'])
+    dados_copia[df_data] = pd.to_datetime(dados_copia[df_data])
 
-    # Extrai o mês e adiciona a coluna 'mes'
-    dados_copia['mes'] = dados_copia['Data'].dt.to_period('M')
+    # Extrai o dia e adiciona a coluna 'dia'
+    dados_copia['dia'] = dados_copia[df_data].dt.to_period('D')
 
-    # Calcula a média mensal de 'variavel_y'
-    dados_mensal = dados_copia.groupby('mes')[variavel_y].mean().reset_index()
-    dados_mensal['mes'] = dados_mensal['mes'].dt.to_timestamp()  # Converte 'mes' para datetime
+    # Calcula a média diária de 'variavel_y'
+    dados_diario = dados_copia.groupby('dia')[variavel_y].mean().reset_index()
+    dados_diario['dia'] = dados_diario['dia'].dt.to_timestamp()  # Converte 'dia' para datetime
 
     # Preenche valores nulos com o valor anterior
-    if dados_mensal[variavel_y].isnull().sum() > 0:
-        dados_mensal[variavel_y].fillna(method='ffill', inplace=True)
+    if dados_diario[variavel_y].isnull().sum() > 0:
+        dados_diario[variavel_y].fillna(method='ffill', inplace=True)
 
     # Realiza a decomposição da série temporal
-    decomposicao = seasonal_decompose(dados_mensal[variavel_y], model=modelo, period=int(freq))
+    decomposicao = seasonal_decompose(dados_diario[variavel_y], model=modelo, period=int(freq))
+
+    # Define um intervalo de tempo para visualização mais compacta
+    intervalo_visao = 365  # Número de dias a serem exibidos
+    dados_filtrados = dados_diario.iloc[-intervalo_visao:]  # Filtra os últimos 'intervalo_visao' dias
 
     # Cria subplots com 4 gráficos, um abaixo do outro
     subplot_fig = make_subplots(rows=4, cols=1, shared_xaxes=True, vertical_spacing=0.05,
                                 subplot_titles=["Observado", "Tendência", "Sazonalidade", "Ruído"])
 
     # Observado
-    subplot_fig.add_trace(go.Scatter(x=dados_mensal['mes'], y=decomposicao.observed, mode='lines', name='Observado', line=dict(color='blue')),
+    subplot_fig.add_trace(go.Scatter(x=dados_filtrados['dia'], y=decomposicao.observed[-intervalo_visao:], mode='lines', name='Observado', line=dict(color='blue')),
                           row=1, col=1)
 
     # Tendência
-    subplot_fig.add_trace(go.Scatter(x=dados_mensal['mes'], y=decomposicao.trend, mode='lines', name='Tendência', line=dict(color='orange')),
+    subplot_fig.add_trace(go.Scatter(x=dados_filtrados['dia'], y=decomposicao.trend[-intervalo_visao:], mode='lines', name='Tendência', line=dict(color='orange')),
                           row=2, col=1)
 
     # Sazonalidade
-    subplot_fig.add_trace(go.Scatter(x=dados_mensal['mes'], y=decomposicao.seasonal, mode='lines', name='Sazonalidade', line=dict(color='green')),
+    subplot_fig.add_trace(go.Scatter(x=dados_filtrados['dia'], y=decomposicao.seasonal[-intervalo_visao:], mode='lines', name='Sazonalidade', line=dict(color='green')),
                           row=3, col=1)
 
     # Ruído
-    subplot_fig.add_trace(go.Scatter(x=dados_mensal['mes'], y=decomposicao.resid, mode='lines', name='Ruído', line=dict(color='red')),
+    subplot_fig.add_trace(go.Scatter(x=dados_filtrados['dia'], y=decomposicao.resid[-intervalo_visao:], mode='lines', name='Ruído', line=dict(color='red')),
                           row=4, col=1)
 
     # Layout do gráfico
     subplot_fig.update_layout(
         title=f'Decomposição da Série Temporal ({modelo})',
-        #xaxis_title='Data',
         yaxis_title='Valores',
         height=800,
         template='plotly_white'
@@ -109,26 +120,31 @@ def decomposicao_serie_temporal(dados,df_data, variavel_y, freq=12, modelo='addi
 
     return subplot_fig
 
+
 def plot_autocorrelacao(dados, df_data, variavel_y, lags=24):
+    import pandas as pd
+    from statsmodels.tsa.stattools import acf
+    import plotly.graph_objects as go
+
     # Cria uma cópia do DataFrame com as colunas 'Data' e 'variavel_y'
     dados_copia = dados[[df_data, variavel_y]].copy()
 
     # Converte a coluna 'Data' para o tipo datetime, se ainda não estiver nesse formato
-    dados_copia[df_data] = pd.to_datetime(dados_copia['Data'])
+    dados_copia[df_data] = pd.to_datetime(dados_copia[df_data])
 
-    # Extrai o mês e adiciona a coluna 'mes'
-    dados_copia['mes'] = dados_copia[df_data].dt.to_period('M')
+    # Extrai o dia e adiciona a coluna 'dia'
+    dados_copia['dia'] = dados_copia[df_data].dt.to_period('D')
 
-    # Calcula a média mensal de 'variavel_y'
-    dados_mensal = dados_copia.groupby('mes')[variavel_y].mean().reset_index()
-    dados_mensal['mes'] = dados_mensal['mes'].dt.to_timestamp()  # Converte 'mes' para datetime
+    # Calcula a média diária de 'variavel_y'
+    dados_diario = dados_copia.groupby('dia')[variavel_y].mean().reset_index()
+    dados_diario['dia'] = dados_diario['dia'].dt.to_timestamp()  # Converte 'dia' para datetime
 
     # Preenche valores nulos com o valor anterior
-    if dados_mensal[variavel_y].isnull().sum() > 0:
-        dados_mensal[variavel_y].fillna(method='ffill', inplace=True)
+    if dados_diario[variavel_y].isnull().sum() > 0:
+        dados_diario[variavel_y].fillna(method='ffill', inplace=True)
 
     # Calcula a autocorrelação
-    acf_vals = acf(dados_mensal[variavel_y], nlags=lags)
+    acf_vals = acf(dados_diario[variavel_y], nlags=lags)
 
     # Cria o gráfico de autocorrelação com Plotly
     fig = go.Figure()
@@ -141,6 +157,40 @@ def plot_autocorrelacao(dados, df_data, variavel_y, lags=24):
     )
 
     return fig
+
+
+def plot_autocorrelacao_parcial(dados, df_data, variavel_y, lags=24):
+
+
+    # Cria uma cópia do DataFrame com as colunas 'Data' e 'variavel_y'
+    dados_copia = dados[[df_data, variavel_y]].copy()
+
+    # Converte a coluna 'Data' para o tipo datetime, se ainda não estiver nesse formato
+    dados_copia[df_data] = pd.to_datetime(dados_copia[df_data])
+
+    # Extrai o dia e adiciona a coluna 'dia'
+    dados_copia['dia'] = dados_copia[df_data].dt.to_period('D')
+
+    # Calcula a média diária de 'variavel_y'
+    dados_diario = dados_copia.groupby('dia')[variavel_y].mean().reset_index()
+    dados_diario['dia'] = dados_diario['dia'].dt.to_timestamp()  # Converte 'dia' para datetime
+
+    # Calcula a autocorrelação parcial
+    pacf_vals = pacf(dados_diario[variavel_y], nlags=lags)
+
+    # Cria o gráfico de autocorrelação parcial com Plotly
+    fig = go.Figure()
+    fig.add_trace(go.Bar(x=list(range(len(pacf_vals))), y=pacf_vals, name="Autocorrelação Parcial"))
+    fig.update_layout(
+        title="Função de Autocorrelação Parcial (PACF)",
+        xaxis_title="Defasagens",
+        yaxis_title="Autocorrelação Parcial",
+        template="plotly_white"
+    )
+
+    return fig
+
+
 
 
 def plot_utc(df,df_data, variavel1, variavel2, ano):
@@ -179,6 +229,63 @@ def plot_utc(df,df_data, variavel1, variavel2, ano):
 
     return subplot_fig
 
+
+
+def modelos_ARIMA(dados, df_data, variavel_y, p, d, q):
+
+    # Cria uma cópia do DataFrame com as colunas 'Data' e 'variavel_y'
+    dados_copia = dados[[df_data, variavel_y]].copy()
+
+    # Converte a coluna 'Data' para o tipo datetime, se ainda não estiver nesse formato
+    dados_copia[df_data] = pd.to_datetime(dados_copia[df_data])
+
+    # Extrai o dia e adiciona a coluna 'dia'
+    dados_copia['dia'] = dados_copia[df_data].dt.to_period('D')
+
+    # Calcula a média diária de 'variavel_y'
+    dados_diario = dados_copia.groupby('dia')[variavel_y].mean().reset_index()
+    dados_diario['dia'] = dados_diario['dia'].dt.to_timestamp()  # Converte 'dia' para datetime
+
+    modelo = ARIMA(dados_diario[variavel_y], order=(p, d, q)).fit()
+
+    # Valores ajustados (fitted values)
+    fitted_values = modelo.fittedvalues
+
+    # Gráfico com valores reais e ajustados
+    fig = go.Figure()
+
+    # Valores reais
+    fig.add_trace(go.Scatter(
+        x=dados_diario['dia'],
+        y=dados_diario[variavel_y],
+        mode='lines',
+        name='Valores Reais',
+        line=dict(color='darkorange')
+    ))
+
+    # Valores ajustados
+    fig.add_trace(go.Scatter(
+        x=dados_diario['dia'],
+        y=fitted_values,
+        mode='lines',
+        name='Valores Ajustados',
+        line=dict(color='red')
+    ))
+
+    # Layout do gráfico
+    fig.update_layout(
+        title=f"Comparação entre Valores Reais e Ajustados - ARIMA({p}, {d}, {q})",
+        xaxis_title="Data",
+        yaxis_title=variavel_y,
+        legend=dict(x=0, y=1),
+        template="plotly_white"
+    )
+
+    # Exibe o sumário no Streamlit
+    st.markdown("#### Sumário do Modelo")
+    st.text(modelo.summary())
+
+    return fig
 
 ########################################################################################
 #######################         CÓDIGO         #########################################
@@ -258,14 +365,14 @@ if 'df' in locals():
         if graf_duplo_y:
             col1, col2, col3 = st.columns(3)
             with col1:
-                variavel1 = st.selectbox('Selecione o primeiro eixo Y', list(df.columns[2:]), index = 5)
+                variavel1 = st.selectbox('Selecione o primeiro eixo Y', list(df.columns), index = 5)
             with col2:
-                variavel2 = st.selectbox('Selecione o segundo eixo Y', list(df.columns[2:]), index = 13)
+                variavel2 = st.selectbox('Selecione o segundo eixo Y', list(df.columns), index = 13)
             with col3:
                 anos = (pd.to_datetime(df[df_data]).dt.year).unique()
                 ano = st.selectbox('Selecione o ano da análise', anos, index = len(anos) - 1)
 
-            st.plotly_chart(plot_utc(df, variavel1, variavel2, ano), use_container_width=True)
+            st.plotly_chart(plot_utc(df, df_data, variavel1, variavel2, ano), use_container_width=True)
 
         else:
             col1, col2, col3, _,_ = st.columns(5)
@@ -324,17 +431,17 @@ if 'df' in locals():
 
 
     # st.markdown("<h4 style='color: gray;'>Gráfico Comparativo de Séries Temporais</h4>", unsafe_allow_html=True)
-    
+
     st.divider()
 
     st.subheader("Gráficos de Séries Temporais")
-    st.write(":gray[Para ter um pouco mais conhecimento sobre os seus dados, no aspecto temporal, indicamos a nálise dos seguintes gráficos.]")
+    st.write(":gray[Para ter um pouco mais conhecimento sobre os seus dados, no aspecto temporal, indicamos a análise dos seguintes gráficos.]")
 
-    tab1, tab2 = st.tabs(["Gráfico de decomposição", "Gráfico de autocorrelação"])
+    tab1, tab2, tab3 = st.tabs(["Gráfico de decomposição", "Gráfico de autocorrelação", "Gráfico de autocorrelação parcial"])
     with tab1:
         col1, col2 = st.columns(2)
         with col1:
-            variavel1 = st.selectbox('Selecione o eixo Y', list(df.columns[2:]), index = 5, key="variavely_decomp")
+            variavel1 = st.selectbox('Selecione o eixo Y', list(df.columns), index = 5, key="variavely_decomp")
         with col2:
             modelo = st.radio("Selecione o modelo de decomposição", ('additive', 'multiplicative'), index=0, key="modelo_decomp")
 
@@ -346,9 +453,40 @@ if 'df' in locals():
     with tab2:
         col1, col2 = st.columns(2)
         with col1:
-            variavel1 = st.selectbox('Selecione o eixo Y', list(df.columns[2:]), index = 5, key="variavely_lag")
+            variavel1 = st.selectbox('Selecione a variável de interesse', list(df.columns), index = 5, key="variavely_lag")
 
         st.plotly_chart(plot_autocorrelacao(df,df_data, variavel1, lags=24), use_container_width=True)
+
+
+    with tab3:
+        col1, col2 = st.columns(2)
+        with col1:
+            variavel2 = st.selectbox('Selecione a variável de interesse', list(df.columns), index = 5, key="variavely_lag_parcial")
+
+        st.plotly_chart(plot_autocorrelacao_parcial(df,df_data, variavel2, lags=24), use_container_width=True)
+
+
+
+    st.divider()
+    st.subheader("Modelos MA, AR, ARMA e ARIMA", anchor='Modelos')#, divider='red')
+    st.write(":gray[Agora, com um maior conhecimento sobre o comportamento dos dados, indicamos ajustar alguns modelos.]")
+
+    tab1, = st.tabs(["Modelos"])
+    with tab1:
+        col1, col2, col3, col4 = st.columns(4)
+        with col1:
+            variavel_y = st.selectbox('Selecione a variável de interesse', list(df.columns), index = 5, key="variavely_mod")
+
+        with col2:
+            p = st.selectbox('Parâmetro p', list(range(0, 11)), index = 2, key="variavely_mod_p")
+
+        with col3:
+            d = st.selectbox('Parâmetro d', list(range(0, 11)), index = 0, key="variavely_mod_d")
+
+        with col4:
+            q = st.selectbox('Parâmetro q', list(range(0, 11)), index = 3, key="variavely_mod_q")
+
+        st.plotly_chart(modelos_ARIMA(df, df_data, variavel_y, p, d, q), use_container_width=True)
 
 
 
